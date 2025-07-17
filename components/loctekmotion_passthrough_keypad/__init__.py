@@ -3,7 +3,6 @@ import esphome.config_validation as cv
 from esphome.components import cover, button, uart, switch
 from esphome.const import (
     CONF_ID,
-    CONF_UART_ID,
     CONF_PIN,
     CONF_NAME,
     CONF_DATA,
@@ -12,14 +11,15 @@ from esphome.const import (
 # Definiere den C++ Namespace und die Klasse
 loctek_passthrough_keypad_ns = cg.esphome_ns.namespace('loctek_passthrough_keypad')
 LoctekPassthroughKeypad = loctek_passthrough_keypad_ns.class_('LoctekPassthroughKeypad',
-                                                               cg.Component, uart.UARTDevice)
+                                                               cg.Component, cover.Cover) # Inherit from cover.Cover
 
 # Schema für die Preset-Buttons
 PRESET_BUTTON_SCHEMA = button.BUTTON_SCHEMA.extend(
     {
         cv.GenerateID(): cv.declare_id(button.Button),
         cv.Required(CONF_NAME): cv.string,
-        cv.Required(CONF_DATA): cv.All(cv.list(cv.hex_uint8), cv.Length(min=8, max=8)), # Hex-Payload für den Befehl
+        # KORREKTUR: cv.list ist falsch, es muss cv.All(cv.ensure_list(...)) sein
+        cv.Required(CONF_DATA): cv.All(cv.ensure_list(cv.hex_uint8), cv.Length(min=8, max=8)), # Hex-Payload für den Befehl
     }
 )
 
@@ -31,10 +31,10 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Required("keypad_uart_id"): cv.use_id(uart.UARTComponent),  # UART für Tastatur (Passthrough)
         cv.Required(CONF_PIN): cv.int_,  # GPIO für PIN 20 (Wake Up)
         
-        # Cover-Entität für Hoch/Runter/Stopp
+        # Cover-Entität für Hoch/Runter/Stopp (wird von der Klasse selbst implementiert)
         cv.Optional(cover.CONF_COVER): cover.COVER_SCHEMA.extend(
             {
-                cv.GenerateID(): cv.declare_id(cover.Cover),
+                cv.GenerateID(): cv.declare_id(cover.Cover), # ID für die Cover-Entität
                 cv.Required(CONF_NAME): cv.string,
                 cv.Optional(cover.CONF_DEVICE_CLASS, default="awning"): cover.DEVICE_CLASSES,
             }
@@ -66,12 +66,12 @@ CONFIG_SCHEMA = cv.Schema(
 
 # Code generation function
 async def to_code(config):
-    var = cg.new_Pvariable(config)
+    var = cg.new_Pvariable(config) # Use CONF_ID for the main component variable
     await cg.register_component(var, config)
 
     # Hole UART-Instanzen
-    desk_uart_var = await cg.get_variable(config)
-    keypad_uart_var = await cg.get_variable(config)
+    desk_uart_var = await cg.get_variable(config["desk_uart_id"])
+    keypad_uart_var = await cg.get_variable(config["keypad_uart_id"]) # Correctly get keypad_uart_id
     
     cg.add(var.set_desk_uart(desk_uart_var))
     cg.add(var.set_keypad_uart(keypad_uart_var))
@@ -79,16 +79,18 @@ async def to_code(config):
     # Setze den PIN 20 GPIO
     cg.add(var.set_pin20_gpio(config[CONF_PIN]))
 
-    # Cover-Generierung
+    # Cover-Generierung (wenn konfiguriert)
     if conf_cover := config.get(cover.CONF_COVER):
-        cov = await cover.new_cover(conf_cover)
-        cg.add(var.set_cover(cov))
+        await cover.register_cover(var, conf_cover) # Register the main component as the cover
 
     # Button-Generierung für Presets
     if conf_presets := config.get("presets"):
         for preset_conf in conf_presets:
             btn = await button.new_button(preset_conf)
-            cg.add(var.add_preset_button(btn, preset_conf))
+            # Pass the command_payload correctly
+            command_payload_list =]
+            cg.add(var.add_preset_button(btn, cg.std_vector_uint8_t(command_payload_list)))
+
 
     # Button-Generierung für M-Taste
     if conf_m_button := config.get("m_button"):
