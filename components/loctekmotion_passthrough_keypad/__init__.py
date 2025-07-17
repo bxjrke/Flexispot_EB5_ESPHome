@@ -71,7 +71,7 @@ async def to_code(config):
 
     # Hole UART-Instanzen
     desk_uart_var = await cg.get_variable(config["desk_uart_id"])
-    keypad_uart_var = await cg.get_variable(config["keypad_uart_id"]) # Correctly get keypad_uart_id
+    keypad_uart_var = await cg.get_variable(config["keypad_uart_id"])
     
     cg.add(var.set_desk_uart(desk_uart_var))
     cg.add(var.set_keypad_uart(keypad_uart_var))
@@ -87,9 +87,8 @@ async def to_code(config):
     if conf_presets := config.get("presets"):
         for preset_conf in conf_presets:
             btn = await button.new_button(preset_conf)
-            # Pass the command_payload correctly
-            command_payload_list =]
-            cg.add(var.add_preset_button(btn, cg.std_vector_uint8_t(command_payload_list)))
+            # KORREKTUR: Direkte Übergabe des command_payload aus der Konfiguration
+            cg.add(var.add_preset_button(btn, preset_conf))
 
 
     # Button-Generierung für M-Taste
