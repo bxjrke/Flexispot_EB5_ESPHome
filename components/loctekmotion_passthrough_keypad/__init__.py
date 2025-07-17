@@ -19,7 +19,7 @@ PRESET_BUTTON_SCHEMA = button.BUTTON_SCHEMA.extend(
         cv.GenerateID(): cv.declare_id(button.Button),
         cv.Required(CONF_NAME): cv.string,
         # KORREKTUR: cv.list ist falsch, es muss cv.All(cv.ensure_list(...)) sein
-        cv.Required(CONF_DATA): cv.All(cv.ensure_list(cv.hex_uint8), cv.Length(min=8, max=8)), # Hex-Payload für den Befehl
+        cv.Required(CONF_DATA): cv.All(cv.ensure_list(cv.hex_int), cv.Length(min=8, max=8)), # Hex-Payload für den Befehl
     }
 )
 
